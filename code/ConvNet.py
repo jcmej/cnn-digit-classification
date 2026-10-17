@@ -18,10 +18,43 @@ class ConvNet(nn.Module):
         if mode == 1:
             in_features = MNIST_IMAGE_LENGTH * MNIST_IMAGE_WIDTH # 784
             self.fc1 = nn.Linear(in_features=in_features, out_features=100)
+            # One output score for each digit class
             self.fc_out = nn.Linear(in_features=100, out_features=10)
             self.forward = self.model_1
+
         elif mode == 2:
+            # First convolution, 1 grayscale input channel -> 40 feature maps
+            self.conv1 = nn.Conv2d(
+                in_channels=1,
+                out_channels=40,
+                kernel_size=5,
+                stride=1,
+                padding=0
+            )
+            # Second convolution, 40 input feature maps -> 40 output feature maps
+            self.conv2 = nn.Conv2d(
+                in_channels=40,
+                out_channels=40,
+                kernel_size=5,
+                stride=1,
+                padding=0
+            )
+            # Pooling layer
+            self.pool = nn.MaxPool2d(
+                kernel_size=2,
+                stride=2
+            )
+            # After both convolution and pooling stages: 40 4x4 feature maps
+            feature_channels = 40
+            feature_height = 4
+            feature_width = 4
+
+            in_features = feature_channels * feature_height * feature_width # 640
+            self.fc1 = nn.Linear(in_features=in_features, out_features=100)
+            # One output score for each digit class
+            self.fc_out = nn.Linear(in_features=100, out_features=10)
             self.forward = self.model_2
+
         elif mode == 3:
             self.forward = self.model_3
         elif mode == 4:
@@ -48,14 +81,38 @@ class ConvNet(nn.Module):
     # Use two convolutional layers.
     def model_2(self, X):
         # ======================================================================
-        # Two convolutional layers + one fully connnected layer.
-        #
-        # ----------------- YOUR CODE HERE ----------------------
-        #
-        # Uncomment the following return stmt once method implementation is done.
-        # return  fcl
-        # Delete line return NotImplementedError() once method is implemented.
-        return NotImplementedError()
+        # Two convolutional layers + one fully connnected hidden layer
+        
+        # Pass X through the first convolution layer
+        # (batch, 1, 28, 28) -> (batch, 40, 24, 24)
+        X = self.conv1(X)
+        X = torch.sigmoid(X)
+
+        # Apply first pooling layer
+        # (batch, 40, 24, 24) -> (batch, 40, 12, 12)
+        X = self.pool(X)
+
+        # Pass X through the second convolution
+        # (batch, 40, 12, 12) -> (batch, 40, 8, 8)
+        X = self.conv2(X)
+        X = torch.sigmoid(X)
+
+        # Apply second pooling layer
+        # (batch, 40, 8, 8) -> (batch, 40, 4, 4)
+        X = self.pool(X)
+
+        # Flatten [Batch_size, 40, 4, 4] tensor into a flat [Batch_size, 640] tensor
+        X = torch.flatten(X, start_dim=1)
+
+        # Pass X through the hidden fully connected layer
+        # 640 features -> 100 neurons
+        X = self.fc1(X)
+        X = torch.sigmoid(X)
+
+        # Output fully connected layer
+        # 100 neurons -> 10 digit scores
+        fcl = self.fc_out(X)
+        return fcl
 
     # Replace sigmoid with ReLU.
     def model_3(self, X):
