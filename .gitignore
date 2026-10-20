@@ -2,3 +2,7 @@
 pdf/*
 .DS_Store
 code/__pycache__/
+data/*
+plots/*
+output.txt
+run_all_modes.sh
