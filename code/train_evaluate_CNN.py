@@ -16,7 +16,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, batch_size):
     '''
     Trains the model for an epoch and optimizes it.
     model: The model to train. Should already be in correct device.
-    device: 'cuda' or 'cpu'.
+    device: 'cuda', 'mps', or 'cpu'.
     train_loader: dataloader for training samples.
     optimizer: optimizer to use for model parameter updates.
     criterion: used to compute loss for prediction and target 
@@ -44,12 +44,8 @@ def train(model, device, train_loader, optimizer, criterion, epoch, batch_size):
         # Do forward pass for current set of data
         output = model(data)
         
-        # ======================================================================
         # Compute loss based on criterion
-        # ----------------- YOUR CODE HERE ----------------------
-        #
-        # Remove NotImplementedError and assign correct loss function.
-        loss = NotImplementedError()
+        loss = criterion(output, target)
         
         # Computes gradient based on final loss
         loss.backward()
@@ -63,15 +59,11 @@ def train(model, device, train_loader, optimizer, criterion, epoch, batch_size):
         # Get predicted index by selecting maximum log-probability
         pred = output.argmax(dim=1, keepdim=True)
         
-        # ======================================================================
-        # Count correct predictions overall 
-        # ----------------- YOUR CODE HERE ----------------------
-        #
-        # Remove NotImplementedError and assign counting function for correct predictions.
-        correct = NotImplementedError()
+        # Count correct predictions overall
+        correct += pred.eq(target.view_as(pred)).sum().item()
         
     train_loss = float(np.mean(losses))
-    train_acc = correct / ((batch_idx+1) * batch_size)
+    train_acc = 100 * correct / len(train_loader.dataset)
     print('Train set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         float(np.mean(losses)), correct, (batch_idx+1) * batch_size,
         100. * correct / ((batch_idx+1) * batch_size)))
@@ -79,12 +71,13 @@ def train(model, device, train_loader, optimizer, criterion, epoch, batch_size):
     
 
 
-def test(model, device, test_loader):
+def test(model, device, test_loader, criterion):
     '''
     Tests the model.
     model: The model to train. Should already be in correct device.
     device: 'cuda' or 'cpu'.
     test_loader: dataloader for test samples.
+    criterion: used to compute loss for prediction and target
     '''
     
     # Set model to eval mode to notify all layers.
@@ -103,13 +96,8 @@ def test(model, device, test_loader):
             # Predict for data by doing forward pass
             output = model(data)
             
-            # ======================================================================
-            # Compute loss based on same criterion as training
-            # ----------------- YOUR CODE HERE ----------------------
-            #
-            # Remove NotImplementedError and assign correct loss function.
             # Compute loss based on same criterion as training 
-            loss = NotImplementedError()
+            loss = criterion(output, target)
             
             # Append loss to overall test loss
             losses.append(loss.item())
@@ -117,12 +105,8 @@ def test(model, device, test_loader):
             # Get predicted index by selecting maximum log-probability
             pred = output.argmax(dim=1, keepdim=True)
             
-            # ======================================================================
             # Count correct predictions overall 
-            # ----------------- YOUR CODE HERE ----------------------
-            #
-            # Remove NotImplementedError and assign counting function for correct predictions.
-            correct = NotImplementedError()
+            correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss = float(np.mean(losses))
     accuracy = 100. * correct / len(test_loader.dataset)
@@ -135,30 +119,28 @@ def test(model, device, test_loader):
 
 def run_main(FLAGS):
     # Check if cuda is available
-    use_cuda = torch.cuda.is_available()
-    
-    # Set proper device based on cuda availability 
-    device = torch.device("cuda" if use_cuda else "cpu")
-    print("Torch device selected: ", device)
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
+
+    print(f'Torch device selected: {device}')
     
     # Initialize the model and send to device 
     model = ConvNet(FLAGS.mode).to(device)
-    
-    # ======================================================================
-    # Define loss function.
-    # ----------------- YOUR CODE HERE ----------------------
-    #
-    # Remove NotImplementedError and assign correct loss function.
-    criterion = NotImplementedError()
-    
-    # ======================================================================
-    # Define optimizer function.
-    # ----------------- YOUR CODE HERE ----------------------
-    #
-    # Remove NotImplementedError and assign appropriate optimizer with learning rate and other paramters.
-    optimizer = NotImplementedError()
+
+    # Define loss function
+    criterion = nn.CrossEntropyLoss()
+    # Define optimizer function
+    optimizer = optim.SGD(
+        params=model.parameters(),
+        lr=FLAGS.learning_rate,
+        momentum=0.0,
+        weight_decay=0.0
+    )
         
-    
     # Create transformations to apply to each data sample 
     # Can specify variations such as image flip, color flip, random crop, ...
     transform=transforms.Compose([
@@ -178,16 +160,27 @@ def run_main(FLAGS):
                                 shuffle=False, num_workers=4)
     
     best_accuracy = 0.0
+
+    history = {
+        'train_loss': [],
+        'test_loss': [],
+        'train_accuracy': [],
+        'test_accuracy': []
+    }
     
     # Run training for n_epochs specified in config 
     for epoch in range(1, FLAGS.num_epochs + 1):
         train_loss, train_accuracy = train(model, device, train_loader,
                                             optimizer, criterion, epoch, FLAGS.batch_size)
-        test_loss, test_accuracy = test(model, device, test_loader)
-        
+        test_loss, test_accuracy = test(model, device, test_loader, criterion)
+
+        history['train_loss'].append(train_loss)
+        history['test_loss'].append(test_loss)
+        history['train_accuracy'].append(train_accuracy)
+        history['test_accuracy'].append(test_accuracy)
+
         if test_accuracy > best_accuracy:
             best_accuracy = test_accuracy
-    
     
     print("accuracy is {:2.2f}".format(best_accuracy))
     
