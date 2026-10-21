@@ -6,3 +6,4 @@ data/*
 plots/*
 output.txt
 run_all_modes.sh
+newton/*

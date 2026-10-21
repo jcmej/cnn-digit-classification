@@ -7,13 +7,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from torch.utils.tensorboard import SummaryWriter
 from ConvNet import ConvNet 
 import argparse
 import numpy as np 
 import matplotlib.pyplot as plt
 
-def train(model, device, train_loader, optimizer, criterion, epoch, batch_size):
+def train(model, device, train_loader, optimizer, criterion):
     '''
     Trains the model for an epoch and optimizes it.
     model: The model to train. Should already be in correct device.
@@ -203,7 +202,7 @@ def run_main(FLAGS):
     # Run training for n_epochs specified in config 
     for epoch in range(1, FLAGS.num_epochs + 1):
         print(f'\nEpoch {epoch}/{FLAGS.num_epochs}', flush=True)
-        train_loss, train_accuracy = train(model, device, train_loader, optimizer, criterion, epoch, FLAGS.batch_size)
+        train_loss, train_accuracy = train(model, device, train_loader, optimizer, criterion)
         test_loss, test_accuracy = test(model, device, test_loader, criterion)
 
         history['train_loss'].append(train_loss)
@@ -221,7 +220,6 @@ def run_main(FLAGS):
     
     
 if __name__ == '__main__':
-    # Set parameters for Sparse Autoencoder
     parser = argparse.ArgumentParser('CNN Exercise.')
     parser.add_argument('--mode',
                         type=int, default=1,
